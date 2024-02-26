@@ -14,7 +14,8 @@ dependencies:
   - lightning~=2.1.0
   - matplotlib-base~=3.8.2
   - planetary-computer~=1.0.0
-  - pytorch~=2.1.0=*cuda120*
+  - pytorch~=2.1.0
+  - pyarrow~=15.0.0
   - python=3.11
   - rioxarray~=0.15.0
   - scikit-image~=0.22.0
@@ -26,3 +27,4 @@ dependencies:
   - vit-pytorch~=1.6.4
   - wandb~=0.15.12
   - zarr~=2.16.1
+  
