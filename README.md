@@ -131,7 +131,7 @@ Additionally the project root will be mounted as volume to the running container
 
 This default command can be overridden with a custom command: 
 ```bash
-docker-compose run claymodel -c {custom command}
+docker-compose run claymodel {custom command}
 ```
 or using docker directly: 
 ```bash
@@ -139,7 +139,14 @@ docker run --rm -it -v $(pwd):/model -p 8888:8888 -e ENV_NAME=claymodel --platfo
 ```
 
 For example, the `bash` command can be used to access an interactive bash session within the running docker container, with the `micromamba` environment already activated: 
+(with docker-compose)
 ```bash
+# with docker-compose
+docker-compose run claymdel bash
+(claymodel) mambauser@f04261284e87:/model$
+```
+```bash
+# with straight docker
 docker run --rm -it -v $(pwd):/model -p 8888:8888 -e ENV_NAME=claymodel --platform linux/amd64 claymodel:latest bash
 (claymodel) mambauser@f04261284e87:/model$
 ```
