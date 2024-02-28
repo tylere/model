@@ -103,19 +103,19 @@ More options can be found using `python trainer.py fit --help`, or at the
 
 ## Docker
 
-In order to avoid installing dependencies directly onto the machine, a Dockerized version of the Clay model has been provided. To run it using [docker compose](https://docs.docker.com/compose/) run the following command from the repo root: 
+In order to avoid installing dependencies directly onto the machine, a Dockerized version of the Clay model has been provided. To run it using [docker compose](https://docs.docker.com/compose/) run the following command from the repo root:
 ```bash
 docker-compose up # using the --build flag to force a rebuild, if necessary
 ```
 
-Alternatively, you can build and run the Docker image using docker directly with: 
+Alternatively, you can build and run the Docker image using docker directly with:
 ```bash
 docker build . -t claymodel --platform linux/amd64 # build image
 docker run --rm -it -v $(pwd):/model -p 8888:8888 -e ENV_NAME=claymodel --platform linux/amd64 claymodel:latest # run container
 ```
 
-In both cases, the default command will be run, which instantiates a [jupyter-lab](https://jupyterlab.readthedocs.io/en/stable/getting_started/starting.html) instance, from which the documentation notebooks can be run. The jupyter notebook will be accssible on the exposed port (`8888`). 
-### Note: accessing the jupyter-lab instance in the browser requires an authentication token that can be found in the container logs. Look for the following lines: 
+In both cases, the default command will be run, which instantiates a [jupyter-lab](https://jupyterlab.readthedocs.io/en/stable/getting_started/starting.html) instance, from which the documentation notebooks can be run. The jupyter notebook will be accssible on the exposed port (`8888`).
+### Note: accessing the jupyter-lab instance in the browser requires an authentication token that can be found in the container logs. Look for the following lines:
 ```bash
 model-claymodel-1  |
 model-claymodel-1  |     To access the server, open this file in a browser:
@@ -129,17 +129,16 @@ Additionally the project root will be mounted as volume to the running container
 
 ### Custom commands:
 
-This default command can be overridden with a custom command: 
+This default command can be overridden with a custom command:
 ```bash
 docker-compose run claymodel {custom command}
 ```
-or using docker directly: 
+or using docker directly:
 ```bash
 docker run --rm -it -v $(pwd):/model -p 8888:8888 -e ENV_NAME=claymodel --platform linux/amd64 claymodel:latest {custom command}
 ```
 
-For example, the `bash` command can be used to access an interactive bash session within the running docker container, with the `micromamba` environment already activated: 
-(with docker-compose)
+For example, the `bash` command can be used to access an interactive bash session within the running docker container, with the `micromamba` environment already activated:
 ```bash
 # with docker-compose
 docker-compose run claymdel bash
