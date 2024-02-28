@@ -11,6 +11,6 @@ services:
     ports:
       - "8888:8888" # Expose port 8888 on the host and bind it to port 8888 in the container
     volumes:
-      - .:/model # Mount the current directory to /app in the container
+      - .:/model # Mount the current directory to /model in the container
     environment:
       - ENV_NAME=claymodel # Ensure the claymodel conda environment is activated
