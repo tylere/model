@@ -141,7 +141,7 @@ docker run --rm -it -v $(pwd):/model -p 8888:8888 -e ENV_NAME=claymodel --platfo
 For example, the `bash` command can be used to access an interactive bash session within the running docker container, with the `micromamba` environment already activated:
 ```bash
 # with docker-compose
-docker-compose run claymdel bash
+docker-compose run claymodel bash
 (claymodel) mambauser@f04261284e87:/model$
 ```
 ```bash
