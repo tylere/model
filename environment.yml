@@ -30,4 +30,3 @@ dependencies:
 platforms:
   - linux-64
   - osx-64
-  - osx-arm64
