@@ -44,6 +44,7 @@ Finally, double-check that the libraries have been installed.
 
     mamba list
 
+
 ## Usage
 
 ### Running jupyter lab
