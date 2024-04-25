@@ -1,4 +1,4 @@
-s2a_l2a:
+s2:
   band_order:
     - blue
     - green
@@ -17,27 +17,27 @@ s2a_l2a:
   gsd: 20
   bands:
     mean:
-      blue: 1200
-      green: 1400
-      red: 1500
-      rededge1: 1800
-      rededge2: 1900
-      rededge3: 2000
-      nir: 2200
-      nir08: 2300
-      swir16: 2400
-      swir22: 2500
+      blue: 550
+      green: 770
+      red: 840
+      rededge1: 1240
+      rededge2: 2000
+      rededge3: 2360
+      nir: 2480
+      nir08: 2600
+      swir16: 2000
+      swir22: 1230
     std:
-      blue: 200
-      green: 250
-      red: 300
-      rededge1: 330
-      rededge2: 340
-      rededge3: 360
-      nir: 400
-      nir08: 420
-      swir16: 450
-      swir22: 480
+      blue: 780
+      green: 780
+      red: 840
+      rededge1: 1240
+      rededge2: 2050
+      rededge3: 2360
+      nir: 2500
+      nir08: 2630
+      swir16: 2000
+      swir22: 1230
     wavelength:
       blue: 0.4905
       green: 0.5605
