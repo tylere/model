@@ -389,8 +389,8 @@ class ClayMAE(nn.Module):
         self.norm_pix_loss = norm_pix_loss
         self.shuffle = shuffle
         self.metadata = metadata
-        self.teacher = timm.create_model(teacher, pretrained=True, num_classes=0)
-        self.proj = nn.Linear(dim, self.teacher.num_features)
+        # self.teacher = timm.create_model(teacher, pretrained=True, num_classes=0)
+        # self.proj = nn.Linear(dim, self.teacher.num_features)
 
         self.encoder = Encoder(
             mask_ratio=mask_ratio,
@@ -414,7 +414,7 @@ class ClayMAE(nn.Module):
             mlp_ratio=decoder_mlp_ratio,
         )
 
-        self.freeze_teacher()
+        # self.freeze_teacher()
 
     def freeze_teacher(self):
         for param in self.teacher.parameters():
@@ -438,7 +438,7 @@ class ClayMAE(nn.Module):
             var = patches.var(dim=-1, keepdim=True)
             patches = (patches - mean) / (var + 1e-6) ** 0.5
 
-        loss = F.l1_loss(patches, pixels, reduction="none")  # loss per pixel
+        loss = F.mse_loss(patches, pixels, reduction="none")  # loss per pixel
         loss = reduce(loss, "B L D -> B L", reduction="mean")  # loss per patch
 
         loss = (
@@ -494,22 +494,23 @@ class ClayMAE(nn.Module):
             datacube["pixels"], pixels, masked_matrix
         )
 
-        # TEACHER
-        encoder_output = self.proj(encoded_unmasked_patches[:, 0, :])  # [B D']
-        # Read RGB bands from the sensor to feed the teacher model
-        indices = self.metadata[datacube["platform"][0]].rgb_indices
-        with torch.no_grad():
-            teacher_output = self.teacher(datacube["pixels"][:, indices, :, :])
+        # # TEACHER
+        # encoder_output = self.proj(encoded_unmasked_patches[:, 0, :])  # [B D']
+        # # Read RGB bands from the sensor to feed the teacher model
+        # indices = self.metadata[datacube["platform"][0]].rgb_indices
+        # with torch.no_grad():
+        #     teacher_output = self.teacher(datacube["pixels"][:, indices, :, :])
 
-        representation_loss = -(
-            F.cosine_similarity(encoder_output, teacher_output).mean()
-            - 1.0  # change range from [-1, 1] to [-2, 0]
-        )  # negative cosine similarity, [0, 2] -> 0 is similar & 2 is opposite
+        # representation_loss = -(
+        #     F.cosine_similarity(encoder_output, teacher_output).mean()
+        #     - 1.0  # change range from [-1, 1] to [-2, 0]
+        # )  # negative cosine similarity, [0, 2] -> 0 is similar & 2 is opposite
 
-        loss = 0.90 * reconstruction_loss + 0.10 * representation_loss
-        return (loss, reconstruction_loss, representation_loss)
+        # loss = 0.90 * reconstruction_loss + 0.10 * representation_loss
+        # return (loss, reconstruction_loss, representation_loss)
         # print(f"{reconstruction_loss:.4f}, {representation_loss:.4f}, {loss:.4f}")
-        # return loss
+        loss = reconstruction_loss
+        return loss
 
 
 def clay_mae_tiny(**kwargs):
@@ -628,8 +629,8 @@ class ClayMAEModule(L.LightningModule):
                 f"Invalid model size {model_size}. Expected one of {model_map.keys()}"
             )
 
-    def on_train_epoch_start(self):
-        self.model.teacher.eval()
+    # def on_train_epoch_start(self):
+    #     self.model.teacher.eval()
 
     def forward(self, datacube: dict[str, torch.Tensor]):
         return self.model(datacube)
@@ -655,7 +656,8 @@ class ClayMAEModule(L.LightningModule):
 
     def shared_step(self, batch: dict[str, torch.Tensor], batch_idx: int, phase: str):
         datacube = batch
-        loss, reconstruction_loss, representation_loss = self(datacube)
+        # loss, reconstruction_loss, representation_loss = self(datacube)
+        loss = self(datacube)
         self.log(
             name=f"{phase}/loss",
             value=loss,
@@ -665,24 +667,24 @@ class ClayMAEModule(L.LightningModule):
             logger=True,
             sync_dist=True,
         )
-        self.log(
-            name=f"{phase}/rec_loss",
-            value=reconstruction_loss,
-            on_step=True,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True,
-            sync_dist=True,
-        )
-        self.log(
-            name=f"{phase}/rep_loss",
-            value=representation_loss,
-            on_step=True,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True,
-            sync_dist=True,
-        )
+        # self.log(
+        #     name=f"{phase}/rec_loss",
+        #     value=reconstruction_loss,
+        #     on_step=True,
+        #     on_epoch=True,
+        #     prog_bar=True,
+        #     logger=True,
+        #     sync_dist=True,
+        # )
+        # self.log(
+        #     name=f"{phase}/rep_loss",
+        #     value=representation_loss,
+        #     on_step=True,
+        #     on_epoch=True,
+        #     prog_bar=True,
+        #     logger=True,
+        #     sync_dist=True,
+        # )
         return loss
 
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int):
