@@ -106,9 +106,8 @@ def embed_chip(model, path):
 
 def process():
     model = load_model(
-        "/home/tam/pCloudDrive/DevSeed/clay/mae_v0.5.7_epoch-13_val-loss-0.3098.ckpt"
+        "s3://clay-model-ckpt/v0.5.7/mae_v0.5.7_epoch-13_val-loss-0.3098.ckpt"
     )
-    # model = load_model("s3://clay-model-ckpt/v0.5.7/mae_v0.5.7_epoch-13_val-loss-0.3098.ckpt")
 
     df = gp.read_file(
         "s3://clay-california-worldcover-rgbnir-vvvh-chips/california-worldcover-chips.fgb"
