@@ -1,9 +1,19 @@
+import os
+import tempfile
+from pathlib import Path
+
+import boto3
 import geopandas as gp
 import numpy as np
+import pyarrow as pa
+import rasterio
+import requests
 import torch
 import yaml
 from box import Box
+from geoarrow.pyarrow import io
 from pystac_client import Client
+from rasterio.io import MemoryFile
 from stacchip.chipper import Chipper
 from stacchip.indexer import NoStatsChipIndexer
 from stacchip.processors.prechip import normalize_latlon, normalize_timestamp
@@ -12,11 +22,12 @@ from torchvision.transforms import v2
 from src.model_clay_v1 import ClayMAEModule
 
 STAC_API = "https://planetarycomputer.microsoft.com/api/stac/v1"
-BUCKET = "test"
+BUCKET = "clay-v1-california-chips"
 YEAR = 2022
+DEVICE = "cpu"
 
 
-def get_item(idx: int):
+def get_item(idx: int, tmpdir: Path):
     df = gp.read_file(
         "https://clay-mgrs-samples.s3.amazonaws.com/naip_california_quads.fgb"
     )
@@ -49,23 +60,64 @@ def get_item(idx: int):
     if len(items) != 1:
         raise ValueError(f"Found more than one item for row {row}")
 
-    return items[0]
+    item = items[0]
+
+    # Remove unused assets
+    keys = list(item.assets.keys())
+    for key in keys:
+        if key != "image":
+            del item.assets[key]
+
+    # Download naip file for speed
+    name = tmpdir / "naip.tif"
+    download_file(item.assets["image"].href, name)
+    item.assets["image"].href = name
+
+    return item
 
 
-def load_model(ckpt="/home/tam/Downloads/mae_v0.53_last.ckpt", device="cpu"):
-    torch.set_default_device(device)
+def download_file(url: str, name: str):
+    print(f"Downloading file {url}")
+    with requests.get(url) as r:
+        r.raise_for_status()
+        with open(name, "wb") as f:
+            f.write(r.content)
+
+
+def load_model(ckpt: str):
+    torch.set_default_device(DEVICE)
 
     model = ClayMAEModule.load_from_checkpoint(
         ckpt, metadata_path="configs/metadata.yaml", shuffle=False, mask_ratio=0
     )
     model.eval()
 
-    return model.to(device)
+    return model.to(DEVICE)
 
 
-def process(idx, device="cpu"):
-    item = get_item(idx)
-    model = load_model()
+def write_tiff(chip, meta, x, y, item_id):
+    with rasterio.open(
+        f"/home/tam/Desktop/bla_local_naip_chips/bla_{x}_{y}.tif", "w", **meta
+    ) as dst:
+        dst.write(chip)
+    return
+    with MemoryFile() as memfile:
+        with memfile.open(**meta, compress="deflate") as dst:
+            dst.write(chip)
+        memfile.seek(0)
+        s3 = boto3.resource("s3")
+        s3_bucket = s3.Bucket(name=BUCKET)
+        new_key = f"chips/{item_id}/chip_{x}_{y}.tif"
+        print(f"Writing {new_key}")
+        s3_bucket.put_object(
+            Key=new_key,
+            Body=memfile.read(),
+        )
+
+
+def process(idx, chkpt, tmpdir):
+    item = get_item(idx=idx, tmpdir=tmpdir)
+    model = load_model(ckpt=chkpt)
 
     # Extract mean, std, and wavelengths from metadata
     metadata = Box(yaml.safe_load(open("configs/metadata.yaml")))
@@ -80,29 +132,43 @@ def process(idx, device="cpu"):
         ]
     )
 
-    # Remove unused assets
-    keys = list(item.assets.keys())
-    for key in keys:
-        if key != "image":
-            del item.assets[key]
-
     # Create indexer and index
     indexer = NoStatsChipIndexer(item)
     index = indexer.create_index()
 
+    with rasterio.open("/tmp/naip.tif") as rst:
+        meta = rst.meta.copy()
+        meta["width"] = 256
+        meta["height"] = 256
+
     # For each chip create embeddings and store chip
     embeddings = []
-    datacubes = []
     for i in range(len(index)):
+        x = index["chip_index_x"][i].as_py()
+        y = index["chip_index_y"][i].as_py()
+        print(f"Processing {item.id} chip {x} {y}")
         chipper = Chipper(
             platform="naip",
             item_id="granule",
-            chip_index_x=index["chip_index_x"][i].as_py(),
-            chip_index_y=index["chip_index_y"][i].as_py(),
+            chip_index_x=x,
+            chip_index_y=y,
             indexer=indexer,
-            bucket="placeholder",
+            bucket="non-existing-bucket",
         )
         chip = chipper.chip["image"]
+
+        trsf = list(meta["transform"])
+        trsf[2] = (
+            chipper.indexer.bbox[0]
+            + x * chipper.indexer.transform[0] * chipper.indexer.chip_size
+        )
+        trsf[5] = (
+            chipper.indexer.bbox[3]
+            + (y + 1) * chipper.indexer.transform[4] * chipper.indexer.chip_size
+        )
+
+        meta["transform"] = rasterio.Affine(*trsf)
+        write_tiff(chip, meta, x, y, item.id)
 
         # Prep pixels
         pixels = transform(np.expand_dims(chip, axis=0))
@@ -124,14 +190,14 @@ def process(idx, device="cpu"):
             "time": torch.tensor(
                 np.hstack((week_norm, hour_norm)),
                 dtype=torch.float32,
-                device=device,
+                device=DEVICE,
             ),
             "latlon": torch.tensor(
-                np.hstack((lat_norm, lon_norm)), dtype=torch.float32, device=device
+                np.hstack((lat_norm, lon_norm)), dtype=torch.float32, device=DEVICE
             ),
-            "pixels": torch.tensor(pixels, dtype=torch.float32, device=device),
-            "gsd": torch.tensor(item.properties["gsd"], device=device),
-            "waves": torch.tensor(waves, device=device),
+            "pixels": torch.tensor(pixels, dtype=torch.float32, device=DEVICE),
+            "gsd": torch.tensor(item.properties["gsd"], device=DEVICE),
+            "waves": torch.tensor(waves, device=DEVICE),
         }
 
         with torch.no_grad():
@@ -140,14 +206,30 @@ def process(idx, device="cpu"):
         # The first embedding is the class token, which is the
         # overall single embedding.
         embeddings.append(unmsk_patch[0, 0, :].cpu().numpy())
-        datacubes.append(datacube)
-        break
 
-    np.savez_compressed(
-        f"/home/tam/Desktop/clay-v1-data-chips-naip/chip_naip_row_{idx}_chip_{i}.npz",
-        datacubes=datacubes,
-        embeddings=embeddings,
+    # Add embeddings to index
+    index = index.append_column(
+        "embeddings", pa.FixedShapeTensorArray.from_numpy_ndarray(np.array(embeddings))
+    )
+
+    # Centralize the index files to make combining them easier later on
+    writer = pa.BufferOutputStream()
+    io.write_geoparquet_table(index, writer)
+    body = bytes(writer.getvalue())
+    s3 = boto3.resource("s3")
+    s3_bucket = s3.Bucket(name=BUCKET)
+    s3_bucket.put_object(
+        Body=body,
+        Key=f"index/{item.id}/index_{item.id}.parquet",
     )
 
 
-process(23)
+def main():
+    chkpt = "/home/tam/Downloads/mae_v0.53_last.ckpt"
+    # chkpt = "s3://clay-model-ckpt/v0.5.3/mae_v0.5.3_epoch-31_val-loss-0.3060.ckpt"
+    index = int(os.environ.get("AWS_BATCH_JOB_ARRAY_INDEX", 23))
+    with tempfile.TemporaryDirectory() as tmpdir:
+        process(index, chkpt, Path(tmpdir))
+
+
+main()
