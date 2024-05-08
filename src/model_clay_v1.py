@@ -613,6 +613,7 @@ class ClayMAEModule(L.LightningModule):
         b1=0.9,
         b2=0.95,
         embeddings_level: Literal["mean", "patch", "group"] = "mean",
+        ckpt=None # Useful when we want to start training the model from a previous checkpoint
     ):
         super().__init__()
         self.save_hyperparameters(logger=True)
@@ -633,6 +634,10 @@ class ClayMAEModule(L.LightningModule):
                 "teacher": teacher,
             }
             self.model = model_map[model_size](**model_args)
+            if ckpt is not None:
+                print(f"Loading just the model state from checkpoint: {ckpt}")
+                state = {k.replace("model.", ""):v for k,v in torch.load(ckpt)["state_dict"].items()}
+                self.model.load_state_dict(state) # Load just the model weights
         else:
             raise ValueError(
                 f"Invalid model size {model_size}. Expected one of {model_map.keys()}"

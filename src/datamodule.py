@@ -300,7 +300,6 @@ class ClayDataModule(L.LightningDataModule):
             batch_sampler=self.trn_sampler,
             collate_fn=batch_collate,
             pin_memory=True,
-            prefetch_factor=4,
         )
 
     def val_dataloader(self):
@@ -310,7 +309,6 @@ class ClayDataModule(L.LightningDataModule):
             batch_sampler=self.val_sampler,
             collate_fn=batch_collate,
             pin_memory=True,
-            prefetch_factor=4,
         )
 
     def predict_dataloader(self):
