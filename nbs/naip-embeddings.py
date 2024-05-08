@@ -26,6 +26,16 @@ BUCKET = "clay-v1-california-chips"
 YEAR = 2022
 DEVICE = "cpu"
 
+os.environ["CPL_TMPDIR"] = "/tmp"
+os.environ["GDAL_CACHEMAX"] = "75%"
+os.environ["GDAL_INGESTED_BYTES_AT_OPEN"] = "32768"
+os.environ["GDAL_DISABLE_READDIR_ON_OPEN"] = "EMPTY_DIR"
+os.environ["GDAL_HTTP_MERGE_CONSECUTIVE_RANGES"] = "YES"
+os.environ["GDAL_HTTP_MULTIPLEX"] = "YES"
+os.environ["GDAL_HTTP_VERSION"] = "2"
+os.environ["PYTHONWARNINGS"] = "ignore"
+os.environ["VSI_CACHE"] = "TRUE"
+
 
 def get_item(idx: int, tmpdir: Path):
     df = gp.read_file(
