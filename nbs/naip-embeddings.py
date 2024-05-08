@@ -96,11 +96,6 @@ def load_model(ckpt: str):
 
 
 def write_tiff(chip, meta, x, y, item_id):
-    with rasterio.open(
-        f"/home/tam/Desktop/bla_local_naip_chips/bla_{x}_{y}.tif", "w", **meta
-    ) as dst:
-        dst.write(chip)
-    return
     with MemoryFile() as memfile:
         with memfile.open(**meta, compress="deflate") as dst:
             dst.write(chip)
@@ -116,8 +111,8 @@ def write_tiff(chip, meta, x, y, item_id):
 
 
 def process(idx, chkpt, tmpdir):
-    item = get_item(idx=idx, tmpdir=tmpdir)
     model = load_model(ckpt=chkpt)
+    item = get_item(idx=idx, tmpdir=tmpdir)
 
     # Extract mean, std, and wavelengths from metadata
     metadata = Box(yaml.safe_load(open("configs/metadata.yaml")))
@@ -136,7 +131,7 @@ def process(idx, chkpt, tmpdir):
     indexer = NoStatsChipIndexer(item)
     index = indexer.create_index()
 
-    with rasterio.open("/tmp/naip.tif") as rst:
+    with rasterio.open(tmpdir / "naip.tif") as rst:
         meta = rst.meta.copy()
         meta["width"] = 256
         meta["height"] = 256
@@ -225,11 +220,11 @@ def process(idx, chkpt, tmpdir):
 
 
 def main():
-    chkpt = "/home/tam/Downloads/mae_v0.53_last.ckpt"
-    # chkpt = "s3://clay-model-ckpt/v0.5.3/mae_v0.5.3_epoch-31_val-loss-0.3060.ckpt"
+    chkpt = "s3://clay-model-ckpt/v0.5.7/mae_v0.5.7_epoch-13_val-loss-0.3098.ckpt"
     index = int(os.environ.get("AWS_BATCH_JOB_ARRAY_INDEX", 23))
     with tempfile.TemporaryDirectory() as tmpdir:
         process(index, chkpt, Path(tmpdir))
 
 
-main()
+if __name__ == "__main__":
+    main()
