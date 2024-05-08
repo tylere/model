@@ -202,6 +202,16 @@ def process(idx, chkpt, tmpdir):
         # overall single embedding.
         embeddings.append(unmsk_patch[0, 0, :].cpu().numpy())
 
+        # Detach tensors
+        for key, val in datacube.items():
+            if key != "platform":
+                val.detach()
+
+        unmsk_patch.detach()
+        unmsk_idx.detach()
+        msk_idx.detach()
+        msk_matrix.detach()
+
     # Add embeddings to index
     index = index.append_column(
         "embeddings", pa.FixedShapeTensorArray.from_numpy_ndarray(np.array(embeddings))
