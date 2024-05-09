@@ -39,7 +39,8 @@ os.environ["VSI_CACHE"] = "TRUE"
 
 def get_item(idx: int, tmpdir: Path):
     df = gp.read_file(
-        "https://clay-mgrs-samples.s3.amazonaws.com/naip_california_quads.fgb"
+        "https://clay-mgrs-samples.s3.amazonaws.com/naip-mojave-desert.fgb"
+        # "https://clay-mgrs-samples.s3.amazonaws.com/naip_california_quads.fgb"
     )
 
     row = df.iloc[idx]
