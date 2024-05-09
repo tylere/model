@@ -10,6 +10,7 @@ import shapely
 import torch
 import yaml
 from box import Box
+from pyarrow import parquet
 from rasterio.errors import RasterioIOError
 from stacchip.processors.prechip import normalize_latlon, normalize_timestamp
 from torchvision.transforms import v2
@@ -18,7 +19,7 @@ from src.model_clay_v1 import ClayMAEModule
 
 BANDS = ["blue", "green", "red", "nir"]
 DEVICE = "cpu"
-ROWS_PER_BATCH = 1000
+ROWS_PER_BATCH = 100
 
 os.environ["CPL_TMPDIR"] = "/tmp"
 os.environ["GDAL_CACHEMAX"] = "75%"
@@ -130,6 +131,7 @@ def process():
 
         embeddings.append(embedding)
         chips.append(chip)
+        break
 
     if not len(embeddings):
         print("No embeddings created")
@@ -143,7 +145,7 @@ def process():
     table = pa.Table.from_arrays(arrays, names=["chips", "embeddings"])
 
     writer = pa.BufferOutputStream()
-    pa.parquet.write_table(table, writer)
+    parquet.write_table(table, writer)
     body = bytes(writer.getvalue())
     s3 = boto3.resource("s3")
     s3_bucket = s3.Bucket(name="clay-california-worldcover-rgbnir-vvvh-chips")
