@@ -131,7 +131,6 @@ def process():
 
         embeddings.append(embedding)
         chips.append(chip)
-        break
 
     if not len(embeddings):
         print("No embeddings created")
