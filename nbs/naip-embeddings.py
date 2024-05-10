@@ -1,6 +1,8 @@
 import os
 import tempfile
+from io import BytesIO
 from pathlib import Path
+import sys
 
 import boto3
 import geopandas as gp
@@ -24,7 +26,7 @@ from src.model_clay_v1 import ClayMAEModule
 STAC_API = "https://planetarycomputer.microsoft.com/api/stac/v1"
 BUCKET = "clay-v1-california-chips"
 YEAR = 2022
-DEVICE = "cpu"
+DEVICE = "cuda"
 
 os.environ["CPL_TMPDIR"] = "/tmp"
 os.environ["GDAL_CACHEMAX"] = "75%"
@@ -222,30 +224,36 @@ def process(idx, chkpt, tmpdir):
         unmsk_idx.detach()
         msk_idx.detach()
         msk_matrix.detach()
+    
+    del model
 
     # Add embeddings to index
+    print("Done processing tiles, adding embedddings to index")
     index = index.append_column(
         "embeddings", pa.FixedShapeTensorArray.from_numpy_ndarray(np.array(embeddings))
     )
 
     # Centralize the index files to make combining them easier later on
+    print("Writing index to file")
     writer = pa.BufferOutputStream()
     io.write_geoparquet_table(index, writer)
     body = bytes(writer.getvalue())
-    s3 = boto3.resource("s3")
-    s3_bucket = s3.Bucket(name=BUCKET)
-    s3_bucket.put_object(
-        Body=body,
-        Key=f"index/{item.id}/index_{item.id}.parquet",
-    )
+
+    print(f"Uploading index to {BUCKET} using upload_fileobj")
+    s3 = boto3.client("s3")
+    with BytesIO(body) as fl:
+        s3.upload_fileobj(fl, BUCKET, f"index/{item.id}/index_{item.id}.parquet")
+    print("Finished Uploading parquet file")
 
 
-def main():
+def main_process():
     chkpt = "s3://clay-model-ckpt/v0.5.7/mae_v0.5.7_epoch-13_val-loss-0.3098.ckpt"
     index = int(os.environ.get("AWS_BATCH_JOB_ARRAY_INDEX", 23))
     with tempfile.TemporaryDirectory() as tmpdir:
         process(index, chkpt, Path(tmpdir))
+    print("Finished processing")
+    raise SystemError("This is for the batch job to exit, otherwise it hangs.")
 
 
 if __name__ == "__main__":
-    main()
+    main_process()
