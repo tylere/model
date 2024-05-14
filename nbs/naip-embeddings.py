@@ -2,7 +2,6 @@ import os
 import tempfile
 from io import BytesIO
 from pathlib import Path
-import sys
 
 import boto3
 import geopandas as gp
@@ -41,8 +40,9 @@ os.environ["VSI_CACHE"] = "TRUE"
 
 def get_item(idx: int, tmpdir: Path):
     df = gp.read_file(
-        "https://clay-mgrs-samples.s3.amazonaws.com/naip-mojave-desert.fgb"
+        # "https://clay-mgrs-samples.s3.amazonaws.com/naip-mojave-desert.fgb"
         # "https://clay-mgrs-samples.s3.amazonaws.com/naip_california_quads.fgb"
+        "https://clay-mgrs-samples.s3.amazonaws.com/naip_california_without_mojave.fgb"
     )
 
     row = df.iloc[idx]
@@ -224,7 +224,7 @@ def process(idx, chkpt, tmpdir):
         unmsk_idx.detach()
         msk_idx.detach()
         msk_matrix.detach()
-    
+
     del model
 
     # Add embeddings to index

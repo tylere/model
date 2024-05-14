@@ -24,3 +24,4 @@ dependencies:
     - timm
     - vit-pytorch~=1.6.4
     - wandb
+    - https://github.com/Clay-foundation/stacchip/archive/refs/tags/0.1.29.zip
